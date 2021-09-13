@@ -1,40 +1,30 @@
 import { Store, Selector, RootState } from "@lauf/store";
 
-type SelectorMap<S extends RootState, K extends string | number | symbol, V> = {
-  [key in K]: Selector<S, V>;
+type Key = string | number;
+
+type SelectorMap<S extends RootState> = {
+  [key in Key]: Selector<S, unknown>;
 };
 
-type OptionMap<
-  M extends SelectorMap<S, K, V>,
-  S extends RootState,
-  K extends string | number | symbol,
-  V
-> = {
-  data: () => DataMap<M, S, K, V>;
-  created: (this: DataMap<M, S, K, V>) => unknown;
-};
-
-type DataMap<
-  M extends SelectorMap<S, K, V>,
-  S extends RootState,
-  K extends string | number | symbol,
-  V
-> = {
+type DataMap<M extends SelectorMap<S>, S extends RootState> = {
   [key in keyof M]: ReturnType<M[key]>;
 };
 
-export function createOptions<
-  M extends SelectorMap<S, K, V>,
-  S extends RootState,
-  K extends string | number | symbol,
-  V
->(store: Store<S>, selectorMap: M): OptionMap<M, S, K, V> {
-  type Data = DataMap<M, S, K, V>;
+type OptionMap<M extends SelectorMap<S>, S extends RootState> = {
+  data: () => DataMap<M, S>;
+  created: (this: DataMap<M, S>) => unknown;
+};
+
+export function createOptions<M extends SelectorMap<S>, S extends RootState>(
+  store: Store<S>,
+  selectorMap: M
+): OptionMap<M, S> {
+  type Data = DataMap<M, S>;
 
   function data() {
     return Object.fromEntries(
       Object.entries(selectorMap).map((entry) => {
-        const [name, selector] = entry as [K, M[K]];
+        const [name, selector] = entry as [Key, M[Key]];
         return [name, selector(store.read()) as ReturnType<typeof selector>];
       })
     ) as unknown as Data;
@@ -43,7 +33,7 @@ export function createOptions<
   function created(this: Data) {
     store.watch((state) => {
       for (const entry of Object.entries(selectorMap)) {
-        const [name, selector] = entry as [K, M[K]];
+        const [name, selector] = entry as [keyof M, M[Key]];
         const selected = selector(state) as ReturnType<typeof selector>;
         if (!Object.is(this[name], selected)) {
           this[name] = selected;
