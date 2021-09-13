@@ -21,11 +21,13 @@ export function createOptions<M extends SelectorMap<S>, S extends RootState>(
 ): OptionMap<M, S> {
   type Data = DataMap<M, S>;
 
+  // TODO factor out the common traversal
+
   function data() {
     return Object.fromEntries(
       Object.entries(selectorMap).map((entry) => {
-        const [name, selector] = entry as [Key, M[Key]];
-        return [name, selector(store.read()) as ReturnType<typeof selector>];
+        const [name, selector] = entry;
+        return [name, selector(store.read())];
       })
     ) as unknown as Data;
   }
@@ -33,8 +35,8 @@ export function createOptions<M extends SelectorMap<S>, S extends RootState>(
   function created(this: Data) {
     store.watch((state) => {
       for (const entry of Object.entries(selectorMap)) {
-        const [name, selector] = entry as [keyof M, M[Key]];
-        const selected = selector(state) as ReturnType<typeof selector>;
+        const [name, selector] = entry as [keyof Data, M[keyof Data]];
+        const selected = selector(state) as Data[typeof name];
         if (!Object.is(this[name], selected)) {
           this[name] = selected;
         }
